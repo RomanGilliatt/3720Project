@@ -69,28 +69,40 @@ function App() {
   };
 
   return (
-    <div className="App">
-      <h1>Clemson Campus Events</h1>
+    <main className="App">
+      <header>
+        <h1>Clemson Campus Events</h1>
+      </header>
       
-      {message && <div className="message success">{message}</div>}
-      {error && <div className="message error">{error}</div>}
 
-      <div className="events-list">
+      {message && (<section className="message success" aria-live="polite">{message}</section>)}
+      {error && (<section className="message error" aria-live="assertive">{error}</section>)} 
+
+      <ul className="events-list">
         {events.map((event) => (
-          <div key={event.id} className="event-card">
-            <h2>{event.name}</h2>
-            <p>Date: {new Date(event.date).toLocaleDateString()}</p>
-            <p>Available Tickets: {event.tickets_available}</p>
-            <button 
-              onClick={() => buyTicket(event.id, event.name)}
-              disabled={event.tickets_available <= 0}
+          <li key={event.id}>
+            <article className="event-card">
+              <h2>{event.name}</h2>
+              <p>Date: {new Date(event.date).toLocaleDateString()}</p>
+              <p>Available Tickets: {event.tickets_available}</p>
+            
+              <button 
+                onClick={() => buyTicket(event.id, event.name)}
+                disabled={event.tickets_available <= 0}
+
+              //Add accessibility label to button
+              aria-label={
+              event.tickets_available > 0
+              ? `Buy ticket for ${event.name}`
+              : `${event.name} is sold out`}
             >
               {event.tickets_available > 0 ? 'Buy Ticket' : 'Sold Out'}
             </button>
-          </div>
+          </article>
+        </li>
         ))}
-      </div>
-    </div>
+      </ul>
+    </main>
   );
 }
 

@@ -66,3 +66,4 @@ class Event {
 }
 
 module.exports = Event;
+module.exports = db;

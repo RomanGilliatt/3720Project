@@ -1,4 +1,5 @@
 const Event = require('../models/adminModel');
+const db = require('../models/adminModel');
 
 /**
  * Creates a new event in the database
@@ -47,6 +48,20 @@ const createEvent = async (req, res) => {
     }
 };
 
+// DELETE /api/admin/events/:id
+const deleteEvent = (req, res) => {
+  const { id } = req.params;
+  const sql = `DELETE FROM events WHERE id = ?`;
+
+  db.run(sql, [id], function (err) {
+    if (err) return res.status(500).json({ error: err.message });
+    if (this.changes === 0)
+      return res.status(404).json({ error: 'Event not found' });
+    res.json({ message: 'Event deleted successfully' });
+  });
+};
+
 module.exports = {
-    createEvent
+    createEvent,
+    deleteEvent
 };
