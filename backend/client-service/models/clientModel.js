@@ -10,6 +10,13 @@ const db = new sqlite3.Database(path.join(__dirname, '../../shared-db/database.s
 });
 
 class Event {
+    /**
+     * Retrieves all events from database in date order
+     * 
+     * @returns array of event objects
+     * 
+     * @throws database errors
+     */
     static getAll() {
         return new Promise((resolve, reject) => {
             const sql = 'SELECT * FROM events ORDER BY date ASC';
@@ -24,13 +31,22 @@ class Event {
         });
     }
 
+    /**
+     * Processes ticket purchase with transaction safety
+     * 
+     * @param eventId ID of event to purchase ticket for
+     * 
+     * @returns object with success message and remaining tickets
+     * 
+     * @throws error if event not found, no tickets available, or DB error
+     */
     static async purchaseTicket(eventId) {
         return new Promise((resolve, reject) => {
             // Start a transaction to ensure atomic update
             db.serialize(() => {
                 db.run('BEGIN TRANSACTION');
 
-                // First check if tickets are available
+                // Check if tickets are available
                 db.get(
                     'SELECT tickets_available FROM events WHERE id = ?',
                     [eventId],

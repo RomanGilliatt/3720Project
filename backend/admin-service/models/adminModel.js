@@ -19,6 +19,18 @@ const db = new sqlite3.Database(path.join(__dirname, '../../shared-db/database.s
 });
 
 class Event {
+    /**
+     * Creates a new event in the database
+     * 
+     * @param eventData event details
+     * @param eventData.name name of the event
+     * @param eventData.date - date of event (YYYY-MM-DD format)
+     * @param eventData.tickets_available number of available tickets
+     * 
+     * @returns created event object with ID
+     * 
+     * @throws error if validation fails or DB error occurs
+     */
     static create(eventData) {
         return new Promise((resolve, reject) => {
             const { name, date, tickets_available } = eventData;

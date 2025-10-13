@@ -1,5 +1,15 @@
 const Event = require('../models/adminModel');
 
+/**
+ * Creates a new event in the database
+ * 
+ * @param req request object
+ * @param res response object
+ * 
+ * @returns JSON confirmation or error response
+ * 
+ * @throws error if event creation fails
+ */
 const createEvent = async (req, res) => {
     try {
         const eventData = {

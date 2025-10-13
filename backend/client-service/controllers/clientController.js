@@ -1,5 +1,13 @@
 const Event = require('../models/clientModel');
 
+/**
+ * Retrieves all events from the database
+ * 
+ * @param req request object
+ * @param res response object
+ * 
+ * @return JSON array of events or error response
+ */
 const getAllEvents = async (req, res) => {
     try {
         const events = await Event.getAll();
@@ -10,6 +18,14 @@ const getAllEvents = async (req, res) => {
     }
 };
 
+/**
+ * Processes a ticket purchase for a specific event
+ * 
+ * @param req request object
+ * @param res response object
+ * 
+ * @return JSON confirmation or error response
+ */
 const purchaseTicket = async (req, res) => {
     try {
         const eventId = parseInt(req.params.id);
