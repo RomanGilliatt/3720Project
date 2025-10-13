@@ -48,7 +48,15 @@ const createEvent = async (req, res) => {
     }
 };
 
-// DELETE /api/admin/events/:id
+/**
+ * Deletes an event in the database
+ * 
+ * @param req request object
+ * @param res response object
+ * 
+ * @returns JSON confirmation or error response
+ * 
+ */
 const deleteEvent = (req, res) => {
   const { id } = req.params;
   const sql = `DELETE FROM events WHERE id = ?`;
