@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
 
+/**
+ * Main app component for displaying and managing Clemson events
+ * 
+ * @returns rendered component
+ */
 function App() {
   const [events, setEvents] = useState([]);
   const [message, setMessage] = useState(null);
@@ -10,6 +15,11 @@ function App() {
     fetchEvents();
   }, []);
 
+  /**
+   * Fetches events from the client service
+   * 
+   * @returns void
+   */
   const fetchEvents = () => {
     fetch('http://localhost:6001/api/events')
       .then((res) => res.json())
@@ -20,6 +30,14 @@ function App() {
       });
   };
 
+  /**
+   * Processes ticket purchase for an event
+   * 
+   * @param eventId ID of the event to purchase ticket for
+   * @param eventName name of event for success message
+   * 
+   * @returns void
+   */
   const buyTicket = async (eventId, eventName) => {
     try {
       const response = await fetch(`http://localhost:6001/api/events/${eventId}/purchase`, {
