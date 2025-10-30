@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
+import LLMBooking from "./LLMBooking";
 
 /**
  * Main app component for displaying and managing Clemson events
@@ -102,8 +103,15 @@ function App() {
         </li>
         ))}
       </ul>
+      <div>
+      <h1>TigerTix</h1>
+      <LLMBooking />
+      {/* other components */}
+    </div>
+  
     </main>
   );
+
 }
 
 export default App;
