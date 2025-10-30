@@ -16,7 +16,7 @@ const dbPromise = open({
   driver: sqlite3.Database
 });
 
-// LLM PARSING ENDPOINT
+/// LLM PARSING ENDPOINT
 app.post("/api/llm/parse", async (req, res) => {
   const { text } = req.body;
   if (!text) return res.status(400).json({ error: "Missing text input" });
@@ -50,12 +50,34 @@ User input: "${text}"
       });
     }
 
-    res.json(parsed);
+    // Look up the event in the DB to get its ID
+    const db = await dbPromise;
+    const existing = await db.get(
+      "SELECT * FROM events WHERE LOWER(name) LIKE LOWER(?)",
+      [`%${parsed.event}%`]
+    );
+
+    if (!existing) {
+      return res.status(400).json({
+        error: "Event not found in database",
+        event: parsed.event
+      });
+    }
+
+    // Return LLM data plus event ID
+    res.json({
+      event: existing.name,
+      eventId: existing.id,
+      tickets: parsed.tickets,
+      intent: parsed.intent
+    });
+
   } catch (err) {
     console.error("Error:", err.message);
     res.status(500).json({ error: "Failed to communicate with LLM" });
   }
 });
+
 
 // BOOKING CONFIRMATION ENDPOINT
 app.post("/api/llm/confirm", async (req, res) => {
@@ -67,17 +89,25 @@ app.post("/api/llm/confirm", async (req, res) => {
   try {
     await db.exec("BEGIN TRANSACTION");
 
-    // Find event
-    const existing = await db.get("SELECT * FROM events WHERE name = ?", event);
-    if (!existing)
-      throw new Error("Event not found");
+    // Log all events in the database
+    const allEvents = await db.all("SELECT id, name, tickets_available FROM events");
+    console.log("All events in DB:", allEvents);
 
-    if (existing.available_tickets < tickets)
+    // Find event case-insensitively and trim spaces
+    const existing = await db.get(
+      "SELECT * FROM events WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))",
+      [event]
+    );
+    console.log("Matched event:", existing);
+
+    if (!existing) throw new Error("Event not found");
+
+    if (existing.tickets_available < tickets)
       throw new Error("Not enough tickets available");
 
     // Update tickets
-    const newCount = existing.available_tickets - tickets;
-    await db.run("UPDATE events SET available_tickets = ? WHERE id = ?", newCount, existing.id);
+    const newCount = existing.tickets_available - tickets;
+    await db.run("UPDATE events SET tickets_available = ? WHERE id = ?", [newCount, existing.id]);
 
     await db.exec("COMMIT");
 
@@ -86,7 +116,7 @@ app.post("/api/llm/confirm", async (req, res) => {
       message: `Booked ${tickets} ticket(s) for ${event}.`
     });
   } catch (err) {
-    await (await dbPromise).exec("ROLLBACK");
+    await db.exec("ROLLBACK");
     res.status(400).json({ error: err.message });
   }
 });
