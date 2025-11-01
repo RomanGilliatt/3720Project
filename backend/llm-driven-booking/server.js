@@ -22,26 +22,18 @@ app.post("/api/llm/parse", async (req, res) => {
   if (!text) return res.status(400).json({ error: "Missing text input" });
 
   try {
-    // Updated prompt to be more direct and decisive
     const prompt = `
-You are a ticket booking assistant. Be concise and direct. If you detect event and ticket quantity information, provide a clear booking proposal without asking additional questions.
+You are a ticket booking assistant. Be concise and direct. If you detect event and ticket quantity information, proceed with booking.
 
 Rules:
-1. If the user's message contains both an event name and ticket quantity, provide a direct booking proposal
+1. If the user's message contains both an event name and ticket quantity, book the tickets
 2. If the message is missing event name OR ticket quantity, ask for ONLY the missing information
-3. Do not ask about seating, ticket types, or additional preferences
-4. Keep responses under 2 sentences when possible
-5. Don't ask for confirmation if all information is provided
+3. Keep responses under 2 sentences when possible
 
 Current request: "${text}"
 
 If you detect booking intent, include this JSON at the end of your response:
 {"event": "Event Name", "tickets": quantity}
-
-Example good responses:
-- "I can help you book 2 tickets for Clemson Music Fest 2025. {"event": "Clemson Music Fest 2025", "tickets": 2}"
-- "How many tickets would you like to book for Clemson Music Fest 2025?"
-- "Which event would you like to book 2 tickets for?"
 `;
 
     const response = await axios.post("http://localhost:11434/api/generate", {
@@ -58,25 +50,60 @@ Example good responses:
     if (jsonMatch) {
       try {
         parsedData = JSON.parse(jsonMatch[0]);
-        // Verify event exists if booking intent detected
+        // Verify event exists and process booking if intent detected
         if (parsedData.event && parsedData.tickets) {
           const db = await dbPromise;
-          const existing = await db.get(
-            "SELECT * FROM events WHERE LOWER(name) LIKE LOWER(?)",
-            [`%${parsedData.event}%`]
-          );
           
-          if (existing) {
-            parsedData.eventId = existing.id;
-            parsedData.availableTickets = existing.tickets_available;
-            // Add availability check response
-            const canBook = existing.tickets_available >= parsedData.tickets;
-            const availabilityMsg = canBook 
-              ? `There are ${existing.tickets_available} tickets available for this event.`
-              : `Sorry, only ${existing.tickets_available} tickets are available for this event.`;
+          // Start transaction
+          await db.exec("BEGIN TRANSACTION");
+          
+          try {
+            // Find the event
+            const existing = await db.get(
+              "SELECT * FROM events WHERE LOWER(name) LIKE LOWER(?)",
+              [`%${parsedData.event}%`]
+            );
+            
+            if (!existing) {
+              throw new Error("Event not found");
+            }
+
+            // Check ticket availability
+            if (existing.tickets_available < parsedData.tickets) {
+              throw new Error(`Only ${existing.tickets_available} tickets available`);
+            }
+
+            // Update ticket count
+            const newCount = existing.tickets_available - parsedData.tickets;
+            await db.run(
+              "UPDATE events SET tickets_available = ? WHERE id = ?",
+              [newCount, existing.id]
+            );
+
+            // Commit transaction
+            await db.exec("COMMIT");
+
+            // Return success response
             return res.json({
-              message: `${llmResponse.replace(/\{.*\}/s, '').trim()} ${availabilityMsg}`,
-              parsed: parsedData
+              message: `Successfully booked ${parsedData.tickets} tickets for ${existing.name}. You have confirmation #${Date.now()}. There are ${newCount} tickets remaining.`,
+              parsed: {
+                ...parsedData,
+                eventId: existing.id,
+                remainingTickets: newCount,
+                success: true
+              }
+            });
+
+          } catch (error) {
+            // Rollback transaction on error
+            await db.exec("ROLLBACK");
+            return res.json({
+              message: `Booking failed: ${error.message}`,
+              parsed: {
+                ...parsedData,
+                success: false,
+                error: error.message
+              }
             });
           }
         }
@@ -85,7 +112,7 @@ Example good responses:
       }
     }
 
-    // Return both the conversational response and parsed data
+    // Return response for non-booking messages
     res.json({
       message: llmResponse.replace(/\{.*\}/s, '').trim(), // Remove JSON from display message
       parsed: parsedData

@@ -81,12 +81,17 @@ export default function LLMBooking({ refreshEvents }) {
 
       addMessage("assistant", res.data.message, res.data.parsed);
       
-      if (res.data.parsed) {
-        // Speak the response if speech synthesis is available
-        if ('speechSynthesis' in window) {
-          const utterance = new SpeechSynthesisUtterance(res.data.message);
-          window.speechSynthesis.speak(utterance);
+      // If booking was successful, refresh the events list
+      if (res.data.parsed?.success) {
+        if (refreshEvents) {
+          refreshEvents();
         }
+      }
+
+      // Speak the response if speech synthesis is available
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(res.data.message);
+        window.speechSynthesis.speak(utterance);
       }
     } catch (err) {
       addMessage("system", "Sorry, I couldn't process your request. Please try again.");
