@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 
 export default function LLMBooking({ refreshEvents }) {
@@ -6,7 +6,42 @@ export default function LLMBooking({ refreshEvents }) {
   const [messages, setMessages] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [recognition, setRecognition] = useState(null);
+  const [speechVolume, setSpeechVolume] = useState(1);
+  const [selectedVoice, setSelectedVoice] = useState(null);
+  const [availableVoices, setAvailableVoices] = useState([]);
+  const messagesEndRef = useRef(null);
+
+  // Initialize speech synthesis and voices
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      setAvailableVoices(voices);
+      // Try to find and set a clear English voice as default
+      const preferredVoice = voices.find(
+        voice => 
+          voice.lang.startsWith('en') && 
+          (voice.name.includes('Daniel') || // Premium Windows voice
+           voice.name.includes('Samantha') || // Premium macOS voice
+           voice.name.includes('Google'))  // Clear Google voice
+      ) || voices[0];
+      setSelectedVoice(preferredVoice);
+    };
+
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+    loadVoices();
+
+    // Cancel any ongoing speech when component unmounts
+    return () => {
+      window.speechSynthesis.cancel();
+    };
+  }, []);
+
+  // Auto-scroll to latest message
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   // Initialize speech recognition
   useEffect(() => {
@@ -41,6 +76,43 @@ export default function LLMBooking({ refreshEvents }) {
       setRecognition(recognitionInstance);
     }
   }, []);
+
+  // Enhanced speak function with SSML-like processing
+  const speak = (text) => {
+    if (!('speechSynthesis' in window)) return;
+
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+
+    // Process text for better speech synthesis
+    const processedText = text
+      .replace(/{".*"}/, '') // Remove JSON
+      .replace(/([.!?])\s+/g, '$1\n\n') // Add pauses after sentences
+      .replace(/[:,]\s+/g, '$0\n') // Add slight pauses after colons and commas
+      .trim();
+
+    const utterance = new SpeechSynthesisUtterance(processedText);
+    
+    // Configure speech parameters
+    utterance.voice = selectedVoice;
+    utterance.volume = speechVolume;
+
+    // Add event handlers
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = (event) => {
+      console.error('Speech synthesis error:', event);
+      setIsSpeaking(false);
+    };
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Function to stop speaking
+  const stopSpeaking = () => {
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+  };
 
   // Function to play a beep sound
   const playBeep = () => {
@@ -89,12 +161,11 @@ export default function LLMBooking({ refreshEvents }) {
       }
 
       // Speak the response if speech synthesis is available
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(res.data.message);
-        window.speechSynthesis.speak(utterance);
-      }
+      speak(res.data.message);
     } catch (err) {
-      addMessage("system", "Sorry, I couldn't process your request. Please try again.");
+      const errorMessage = "Sorry, I couldn't process your request. Please try again.";
+      addMessage("system", errorMessage);
+      speak(errorMessage);
       console.error(err);
     } finally {
       setIsProcessing(false);
@@ -103,6 +174,51 @@ export default function LLMBooking({ refreshEvents }) {
 
   return (
     <div className="llm-booking">
+      {/* Accessibility Controls */}
+      <div className="accessibility-controls" style={{
+        padding: "12px",
+        marginBottom: "16px",
+        background: "#f5f5f5",
+        borderRadius: "4px"
+      }}>
+        <h3>Accessibility Settings</h3>
+        <div style={{ display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+          <div>
+            <label htmlFor="voice-select">Voice: </label>
+            <select
+              id="voice-select"
+              value={selectedVoice?.name || ""}
+              onChange={(e) => {
+                const voice = availableVoices.find(v => v.name === e.target.value);
+                setSelectedVoice(voice);
+              }}
+              style={{ width: "100%" }}
+            >
+              {availableVoices.map(voice => (
+                <option key={voice.name} value={voice.name}>
+                  {`${voice.name} (${voice.lang})`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="volume">Volume: {Math.round(speechVolume * 100)}%</label>
+            <input
+              type="range"
+              id="volume"
+              min="0"
+              max="1"
+              step="0.1"
+              value={speechVolume}
+              onChange={(e) => setSpeechVolume(parseFloat(e.target.value))}
+              style={{ width: "100%" }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Chat Messages */}
       <div className="chat-messages" style={{
         height: "400px",
         overflowY: "auto",
@@ -128,8 +244,10 @@ export default function LLMBooking({ refreshEvents }) {
             </div>
           </div>
         ))}
+        <div ref={messagesEndRef} />
       </div>
 
+      {/* Input Controls */}
       <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
         <input
           type="text"
@@ -139,7 +257,9 @@ export default function LLMBooking({ refreshEvents }) {
           placeholder="Type your message..."
           style={{ flex: 1, padding: "8px" }}
           disabled={isProcessing}
+          aria-label="Message input"
         />
+        
         <button
           onClick={startListening}
           disabled={isListening || isProcessing}
@@ -153,16 +273,35 @@ export default function LLMBooking({ refreshEvents }) {
             justifyContent: "center",
             backgroundColor: isListening ? "#ff4444" : "#4CAF50"
           }}
+          aria-label={isListening ? "Listening..." : "Start voice input"}
         >
           <span role="img" aria-hidden="true">🎤</span>
         </button>
+
         <button
           onClick={() => handleSendMessage()}
           disabled={isProcessing || !input.trim()}
           style={{ padding: "8px 16px" }}
+          aria-label="Send message"
         >
           Send
         </button>
+
+        {isSpeaking && (
+          <button
+            onClick={stopSpeaking}
+            style={{
+              padding: "8px 16px",
+              backgroundColor: "#dc3545",
+              color: "white",
+              border: "none",
+              borderRadius: "4px"
+            }}
+            aria-label="Stop speaking"
+          >
+            Stop Speech
+          </button>
+        )}
       </div>
     </div>
   );
