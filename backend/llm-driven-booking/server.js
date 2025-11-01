@@ -22,16 +22,26 @@ app.post("/api/llm/parse", async (req, res) => {
   if (!text) return res.status(400).json({ error: "Missing text input" });
 
   try {
-    // Ask the local Ollama model to provide a conversational response
+    // Updated prompt to be more direct and decisive
     const prompt = `
-You are a helpful ticket booking assistant. Analyze the user's request and respond conversationally.
-If they want to book tickets, look for event name and quantity, then propose a booking (don't actually book).
-Include the extracted information in your response if relevant.
+You are a ticket booking assistant. Be concise and direct. If you detect event and ticket quantity information, provide a clear booking proposal without asking additional questions.
+
+Rules:
+1. If the user's message contains both an event name and ticket quantity, provide a direct booking proposal
+2. If the message is missing event name OR ticket quantity, ask for ONLY the missing information
+3. Do not ask about seating, ticket types, or additional preferences
+4. Keep responses under 2 sentences when possible
+5. Don't ask for confirmation if all information is provided
 
 Current request: "${text}"
 
-Respond naturally, but if you detect a booking intent, include this JSON at the end of your response:
+If you detect booking intent, include this JSON at the end of your response:
 {"event": "Event Name", "tickets": quantity}
+
+Example good responses:
+- "I can help you book 2 tickets for Clemson Music Fest 2025. {"event": "Clemson Music Fest 2025", "tickets": 2}"
+- "How many tickets would you like to book for Clemson Music Fest 2025?"
+- "Which event would you like to book 2 tickets for?"
 `;
 
     const response = await axios.post("http://localhost:11434/api/generate", {
@@ -59,6 +69,15 @@ Respond naturally, but if you detect a booking intent, include this JSON at the 
           if (existing) {
             parsedData.eventId = existing.id;
             parsedData.availableTickets = existing.tickets_available;
+            // Add availability check response
+            const canBook = existing.tickets_available >= parsedData.tickets;
+            const availabilityMsg = canBook 
+              ? `There are ${existing.tickets_available} tickets available for this event.`
+              : `Sorry, only ${existing.tickets_available} tickets are available for this event.`;
+            return res.json({
+              message: `${llmResponse.replace(/\{.*\}/s, '').trim()} ${availabilityMsg}`,
+              parsed: parsedData
+            });
           }
         }
       } catch (e) {
