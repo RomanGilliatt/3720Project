@@ -3,9 +3,8 @@ import axios from "axios";
 
 export default function LLMBooking({ refreshEvents }) {
   const [input, setInput] = useState("");
-  const [parsed, setParsed] = useState(null);
-  const [message, setMessage] = useState("");
-  const [parsing, setParsing] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [recognition, setRecognition] = useState(null);
 
@@ -26,8 +25,8 @@ export default function LLMBooking({ refreshEvents }) {
         const transcript = event.results[0][0].transcript;
         setInput(transcript);
         setIsListening(false);
-        // Automatically trigger parsing after voice input
-        handleParse(transcript);
+        // Automatically send message after voice input
+        handleSendMessage(transcript);
       };
 
       recognitionInstance.onerror = (event) => {
@@ -59,90 +58,86 @@ export default function LLMBooking({ refreshEvents }) {
     if (recognition) {
       recognition.start();
     } else {
-      setMessage("Speech recognition is not supported in your browser.");
+      addMessage("system", "Speech recognition is not supported in your browser.");
     }
   };
 
-  // Step 1: Parse user input with LLM
-  const handleParse = async (voiceInput = null) => {
-    const textToProcess = voiceInput || input;
-    if (!textToProcess.trim()) return;
+  const addMessage = (type, text, data = null) => {
+    setMessages(prev => [...prev, { type, text, data, timestamp: new Date() }]);
+  };
 
-    setParsing(true);
-    setMessage("Parsing your request...");
+  const handleSendMessage = async (voiceInput = null) => {
+    const textToSend = voiceInput || input;
+    if (!textToSend.trim()) return;
+
+    setIsProcessing(true);
+    addMessage("user", textToSend);
+    setInput("");
 
     try {
       const res = await axios.post("http://localhost:7001/api/llm/parse", {
-        text: textToProcess
+        text: textToSend
       });
 
-      setParsed(res.data);
-      const responseMessage = `LLM parsed your request: Event="${res.data.event}", Tickets=${res.data.tickets}`;
-      setMessage(responseMessage);
-      speak(responseMessage); // Speak the response
+      addMessage("assistant", res.data.message, res.data.parsed);
+      
+      if (res.data.parsed) {
+        // Speak the response if speech synthesis is available
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(res.data.message);
+          window.speechSynthesis.speak(utterance);
+        }
+      }
     } catch (err) {
+      addMessage("system", "Sorry, I couldn't process your request. Please try again.");
       console.error(err);
-      const errorMessage = "Failed to parse request. Try again.";
-      setMessage(errorMessage);
-      speak(errorMessage);
-      setParsed(null);
     } finally {
-      setParsing(false);
-    }
-  };
-
-  // Step 2: Confirm booking with backend
-  const handleConfirmBooking = async () => {
-    if (!parsed) {
-      const message = "Parse your request first.";
-      setMessage(message);
-      speak(message);
-      return;
-    }
-
-    try {
-      const res = await axios.post("http://localhost:7001/api/llm/confirm", {
-        event: parsed.event,
-        tickets: parsed.tickets
-      });
-
-      setMessage(res.data.message);
-      speak(res.data.message);
-      setParsed(null);
-      setInput("");
-
-      if (refreshEvents) refreshEvents();
-    } catch (err) {
-      const errorMessage = err.response?.data?.error || "Booking failed";
-      setMessage(errorMessage);
-      speak(errorMessage);
-      console.error(err);
-    }
-  };
-
-  // Function to speak text using Web Speech API
-  const speak = (text) => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      window.speechSynthesis.speak(utterance);
+      setIsProcessing(false);
     }
   };
 
   return (
     <div className="llm-booking">
-      <label htmlFor="booking-input">Enter your booking request</label>
-      <div style={{ display: "flex", gap: "8px", alignItems: "center", margin: "8px 0" }}>
+      <div className="chat-messages" style={{
+        height: "400px",
+        overflowY: "auto",
+        border: "1px solid #ccc",
+        borderRadius: "4px",
+        padding: "16px",
+        marginBottom: "16px"
+      }}>
+        {messages.map((msg, idx) => (
+          <div key={idx} style={{
+            marginBottom: "12px",
+            textAlign: msg.type === "user" ? "right" : "left"
+          }}>
+            <div style={{
+              display: "inline-block",
+              backgroundColor: msg.type === "user" ? "#007bff" : msg.type === "system" ? "#dc3545" : "#28a745",
+              color: "white",
+              padding: "8px 12px",
+              borderRadius: "12px",
+              maxWidth: "80%"
+            }}>
+              {msg.text}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
         <input
-          id="booking-input"
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder='e.g., "Book 2 tickets for Clemson Music Fest 2025"'
+          onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+          placeholder="Type your message..."
           style={{ flex: 1, padding: "8px" }}
+          disabled={isProcessing}
         />
         <button
           onClick={startListening}
-          disabled={isListening}
+          disabled={isListening || isProcessing}
           style={{
             padding: "8px",
             borderRadius: "50%",
@@ -153,20 +148,17 @@ export default function LLMBooking({ refreshEvents }) {
             justifyContent: "center",
             backgroundColor: isListening ? "#ff4444" : "#4CAF50"
           }}
-          aria-label={isListening ? "Listening..." : "Start voice input"}
         >
           <span role="img" aria-hidden="true">🎤</span>
         </button>
-      </div>
-      <div style={{ display: "flex", gap: "8px" }}>
-        <button onClick={() => handleParse()} disabled={parsing}>
-          Parse Request
+        <button
+          onClick={() => handleSendMessage()}
+          disabled={isProcessing || !input.trim()}
+          style={{ padding: "8px 16px" }}
+        >
+          Send
         </button>
-        <button onClick={handleConfirmBooking} disabled={parsing || !parsed}>
-          Confirm Booking
-        </button>
       </div>
-      {message && <p>{message}</p>}
     </div>
   );
 }
