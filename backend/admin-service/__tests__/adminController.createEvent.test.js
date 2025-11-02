@@ -1,16 +1,12 @@
 // Tests adminController.createEvent using a mocked adminModel
-
-// Mock the adminModel module before requiring the controller
 jest.mock('../models/adminModel', () => {
   return {
-    // Event.create resolves to a created event object
     create: jest.fn().mockResolvedValue({
       id: 1,
       name: 'Concert',
       date: '2025-11-02',
       tickets_available: 100
     }),
-    // db.run stub (not used in createEvent but present)
     run: jest.fn()
   };
 });
