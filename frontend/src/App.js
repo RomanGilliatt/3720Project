@@ -47,7 +47,7 @@ function App() {
       const data = await response.json();
 
       if (response.ok) {
-        setMessage(`Successfully purchased ticket for: ${eventName}`);
+        //setMessage(`Successfully purchased ticket for: ${eventName}`);
         fetchEvents(); // update ticket counts immediately
       } else {
         setError(data.error || 'Failed to purchase ticket');

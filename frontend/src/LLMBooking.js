@@ -5,13 +5,14 @@ export default function LLMBooking({ refreshEvents }) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [pendingBooking, setPendingBooking] = useState(null); // store proposed booking
+  const messagesEndRef = useRef(null);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [recognition, setRecognition] = useState(null);
   const [speechVolume, setSpeechVolume] = useState(1);
   const [selectedVoice, setSelectedVoice] = useState(null);
   const [availableVoices, setAvailableVoices] = useState([]);
-  const messagesEndRef = useRef(null);
 
   // Initialize speech synthesis and voices
   useEffect(() => {
@@ -138,42 +139,79 @@ export default function LLMBooking({ refreshEvents }) {
     setMessages(prev => [...prev, { type, text, data, timestamp: new Date() }]);
   };
 
+
+  // Send user message to LLM
   const handleSendMessage = async (voiceInput = null) => {
-    const textToSend = voiceInput || input;
-    if (!textToSend.trim()) return;
+    const textToSend = input.trim() || voiceInput;
+    if (!textToSend) return;
 
     setIsProcessing(true);
     addMessage("user", textToSend);
     setInput("");
 
     try {
-      const res = await axios.post("http://localhost:7001/api/llm/parse", {
-        text: textToSend
-      });
+      const res = await axios.post("http://localhost:7001/api/llm/parse", { text: textToSend });
+      const llmMessage = res.data.message;
+      const parsed = res.data.parsed;
 
-      addMessage("assistant", res.data.message, res.data.parsed);
-      
-      // If booking was successful, refresh the events list
-      if (res.data.parsed?.success) {
-        if (refreshEvents) {
-          refreshEvents();
-        }
+      // If LLM proposes a booking, store it in pendingBooking instead of booking immediately
+      if (parsed?.event && parsed?.tickets) {
+        setPendingBooking(parsed);
+        addMessage("assistant", `Proposed booking: ${parsed.tickets} ticket(s) for "${parsed.event}". Click "Confirm Booking" to finalize.`);
+      } else {
+        addMessage("assistant", llmMessage, parsed);
       }
-
-      // Speak the response if speech synthesis is available
-      speak(res.data.message);
     } catch (err) {
       const errorMessage = "Sorry, I couldn't process your request. Please try again.";
       addMessage("system", errorMessage);
-      speak(errorMessage);
       console.error(err);
     } finally {
       setIsProcessing(false);
     }
   };
 
+  // Confirm the pending booking by calling client service
+  const confirmBooking = async () => {
+    if (!pendingBooking) return;
+
+    setIsProcessing(true);
+    try {
+      // Find the event by name first (case-insensitive)
+      const eventsRes = await axios.get("http://localhost:6001/api/events");
+      const event = eventsRes.data.find(e => e.name.toLowerCase() === pendingBooking.event.toLowerCase());
+
+      if (!event) {
+        addMessage("system", `Event "${pendingBooking.event}" not found.`);
+        setPendingBooking(null);
+        return;
+      }
+
+      // Call purchase API
+      const purchaseRes = await axios.post(`http://localhost:6001/api/events/${event.id}/purchase`);
+      const remainingTickets = purchaseRes.data.remaining_tickets ?? event.tickets_available - pendingBooking.tickets;
+
+      addMessage(
+        "assistant",
+        `Successfully booked ${pendingBooking.tickets} ticket(s) for "${event.name}". There are ${remainingTickets} tickets remaining.`
+      );
+
+      speak(purchaseRes.data.message);
+
+      // Refresh main event list
+      if (refreshEvents) refreshEvents();
+    } catch (err) {
+      console.error(err);
+      addMessage("system", "Failed to confirm booking.");
+      speak("Failed to confirm booking.");
+    } finally {
+      setPendingBooking(null);
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div className="llm-booking">
+
       {/* Accessibility Controls */}
       <div className="accessibility-controls" style={{
         padding: "12px",
@@ -218,20 +256,9 @@ export default function LLMBooking({ refreshEvents }) {
         </div>
       </div>
 
-      {/* Chat Messages */}
-      <div className="chat-messages" style={{
-        height: "400px",
-        overflowY: "auto",
-        border: "1px solid #ccc",
-        borderRadius: "4px",
-        padding: "16px",
-        marginBottom: "16px"
-      }}>
+      <div className="chat-messages" style={{ height: "400px", overflowY: "auto", border: "1px solid #ccc", borderRadius: "4px", padding: "16px", marginBottom: "16px" }}>
         {messages.map((msg, idx) => (
-          <div key={idx} style={{
-            marginBottom: "12px",
-            textAlign: msg.type === "user" ? "right" : "left"
-          }}>
+          <div key={idx} style={{ marginBottom: "12px", textAlign: msg.type === "user" ? "right" : "left" }}>
             <div style={{
               display: "inline-block",
               backgroundColor: msg.type === "user" ? "#007bff" : msg.type === "system" ? "#dc3545" : "#28a745",
@@ -247,19 +274,22 @@ export default function LLMBooking({ refreshEvents }) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Controls */}
+      {/* Input */}
       <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
         <input
           type="text"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+          onChange={e => setInput(e.target.value)}
+          onKeyPress={e => e.key === "Enter" && handleSendMessage()}
           placeholder="Type your message..."
           style={{ flex: 1, padding: "8px" }}
           disabled={isProcessing}
           aria-label="Message input"
         />
-        
+        <button onClick={handleSendMessage} disabled={isProcessing || !input.trim()} style={{ padding: "8px 16px" }}>
+          Send
+        </button>
+
         <button
           onClick={startListening}
           disabled={isListening || isProcessing}
@@ -275,16 +305,7 @@ export default function LLMBooking({ refreshEvents }) {
           }}
           aria-label={isListening ? "Listening..." : "Start voice input"}
         >
-          <span role="img" aria-hidden="true">🎤</span>
-        </button>
-
-        <button
-          onClick={() => handleSendMessage()}
-          disabled={isProcessing || !input.trim()}
-          style={{ padding: "8px 16px" }}
-          aria-label="Send message"
-        >
-          Send
+          <span role="img" aria-hidden="true"></span>
         </button>
 
         {isSpeaking && (
@@ -302,8 +323,18 @@ export default function LLMBooking({ refreshEvents }) {
             Stop Speech
           </button>
         )}
+
+        {/* Confirm button shows only when a booking is pending */}
+        {pendingBooking && (
+          <button
+            onClick={confirmBooking}
+            disabled={isProcessing}
+            style={{ padding: "8px 16px", backgroundColor: "#28a745", color: "white", border: "none", borderRadius: "4px" }}
+          >
+            Confirm Booking
+          </button>
+        )}
       </div>
     </div>
   );
 }
-
