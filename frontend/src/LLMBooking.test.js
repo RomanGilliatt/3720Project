@@ -34,13 +34,13 @@ test('send button disabled when input empty and enabled when typing; sends messa
 
   const sendButton = screen.getByRole('button', { name: /Send message|Send/i }) || screen.getByRole('button', { name: /Send/i });
 
-  // At start, input empty so Send should be disabled
+  // At start, input empty so send should be disabled
   expect(sendButton).toBeDisabled();
 
   const input = screen.getByLabelText(/Message input/i);
   fireEvent.change(input, { target: { value: 'Book 2 tickets for Event A' } });
 
-  // Now Send should be enabled
+  // Now send should be enabled
   expect(sendButton).toBeEnabled();
 
   fireEvent.click(sendButton);
@@ -49,6 +49,6 @@ test('send button disabled when input empty and enabled when typing; sends messa
   await waitFor(() => expect(axios.post).toHaveBeenCalled());
   await waitFor(() => expect(mockRefresh).toHaveBeenCalled());
 
-  // Message from assistant should be added to the messages area
+  // Message from LLM should be added to the messages area
   await waitFor(() => expect(screen.getByText(/Booking confirmed/i)).toBeInTheDocument());
 });

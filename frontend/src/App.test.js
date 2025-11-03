@@ -11,7 +11,7 @@ test('displays events fetched from API and allows successful purchase', async ()
     { id: 1, name: 'Event A', date: '2025-11-10T00:00:00.000Z', tickets_available: 5 },
   ];
 
-  // First call: fetch events. Second call: purchase endpoint.
+  // First call: fetch events. Second call: purchase.
   global.fetch = jest.fn()
     .mockResolvedValueOnce({ ok: true, json: async () => events })
     .mockResolvedValueOnce({ ok: true, json: async () => ({ message: 'purchased' }) });
