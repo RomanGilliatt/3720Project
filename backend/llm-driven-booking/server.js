@@ -16,12 +16,13 @@ const dbPromise = open({
   driver: sqlite3.Database
 });
 
-/// LLM PARSING ENDPOINT
+/// LLM PARSING ENDPOINT (FIXED)
 app.post("/api/llm/parse", async (req, res) => {
   const { text } = req.body;
   if (!text) return res.status(400).json({ error: "Missing text input" });
 
   try {
+    // Include user's text in the prompt
     const prompt = `
 You are a ticket booking assistant. Be concise. If you detect event name and ticket quantity, propose booking, but do NOT update database until user confirms.
 
@@ -31,6 +32,8 @@ Rules:
 3. Keep responses under 2 sentences.
 4. Include this JSON at the end if booking can be proposed:
 {"event": "Event Name", "tickets": quantity}
+
+User message: "${text}"
 `;
 
     const response = await axios.post("http://localhost:11434/api/generate", {
@@ -41,9 +44,9 @@ Rules:
 
     const llmResponse = response.data.response.trim();
 
-    // Try to extract JSON if present
+    //Extract JSON safely
     let parsedData = null;
-    const jsonMatch = llmResponse.match(/\{.*\}/s);
+    const jsonMatch = llmResponse.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       try {
         parsedData = JSON.parse(jsonMatch[0]);
@@ -52,9 +55,11 @@ Rules:
       }
     }
 
-    // Return LLM response without touching DB
+    // Clean final message
+    const message = llmResponse.replace(/\{[\s\S]*\}/, "").trim();
+
     res.json({
-      message: llmResponse.replace(/\{.*\}/s, '').trim(),
+      message: message || "(No message returned)",
       parsed: parsedData
     });
 
@@ -67,3 +72,4 @@ Rules:
 app.listen(7001, () => {
   console.log("LLM-driven booking service running on port 7001");
 });
+
