@@ -40,64 +40,60 @@ class Event {
      * 
      * @throws error if event not found, no tickets available, or DB error
      */
-    static async purchaseTicket(eventId) {
-        return new Promise((resolve, reject) => {
-            // Start a transaction to ensure atomic update
-            db.serialize(() => {
-                db.run('BEGIN TRANSACTION');
+    static async purchaseTicket(eventId, ticketsRequested = 1) {
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION');
 
-                // Check if tickets are available
-                db.get(
-                    'SELECT tickets_available FROM events WHERE id = ?',
-                    [eventId],
-                    (err, row) => {
-                        if (err) {
-                            db.run('ROLLBACK');
-                            reject(err);
-                            return;
-                        }
+      // Step 1: Check availability
+      db.get(
+        'SELECT tickets_available, name FROM events WHERE id = ?',
+        [eventId],
+        (err, row) => {
+          if (err) {
+            db.run('ROLLBACK');
+            return reject(err);
+          }
 
-                        if (!row) {
-                            db.run('ROLLBACK');
-                            reject(new Error('Event not found'));
-                            return;
-                        }
+          if (!row) {
+            db.run('ROLLBACK');
+            return reject(new Error('Event not found'));
+          }
 
-                        if (row.tickets_available <= 0) {
-                            db.run('ROLLBACK');
-                            reject(new Error('No tickets available'));
-                            return;
-                        }
+          if (row.tickets_available < ticketsRequested) {
+            db.run('ROLLBACK');
+            return reject(new Error('Not enough tickets available'));
+          }
 
-                        // Update ticket count
-                        db.run(
-                            'UPDATE events SET tickets_available = tickets_available - 1 WHERE id = ? AND tickets_available > 0',
-                            [eventId],
-                            function(err) {
-                                if (err) {
-                                    db.run('ROLLBACK');
-                                    reject(err);
-                                    return;
-                                }
+          // Step 2: Update ticket count dynamically
+          db.run(
+            'UPDATE events SET tickets_available = tickets_available - ? WHERE id = ? AND tickets_available >= ?',
+            [ticketsRequested, eventId, ticketsRequested],
+            function (err) {
+              if (err) {
+                db.run('ROLLBACK');
+                return reject(err);
+              }
 
-                                if (this.changes === 0) {
-                                    db.run('ROLLBACK');
-                                    reject(new Error('Failed to update ticket count'));
-                                    return;
-                                }
+              if (this.changes === 0) {
+                db.run('ROLLBACK');
+                return reject(new Error('Failed to update ticket count'));
+              }
 
-                                db.run('COMMIT');
-                                resolve({
-                                    message: 'Ticket purchased successfully',
-                                    remaining_tickets: row.tickets_available - 1
-                                });
-                            }
-                        );
-                    }
-                );
-            });
-        });
-    }
+              // Step 3: Commit and resolve
+              db.run('COMMIT');
+              resolve({
+                message: `Successfully booked ${ticketsRequested} ticket(s) for "${row.name}".`,
+                remaining_tickets: row.tickets_available - ticketsRequested,
+              });
+            }
+          );
+        }
+      );
+    });
+  });
+}
+
 }
 
 module.exports = Event;

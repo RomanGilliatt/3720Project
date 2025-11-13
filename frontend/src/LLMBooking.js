@@ -5,7 +5,7 @@ export default function LLMBooking({ refreshEvents }) {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [pendingBooking, setPendingBooking] = useState(null); // store proposed booking
+  const [pendingBooking, setPendingBooking] = useState(null); 
   const messagesEndRef = useRef(null);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -14,257 +14,247 @@ export default function LLMBooking({ refreshEvents }) {
   const [selectedVoice, setSelectedVoice] = useState(null);
   const [availableVoices, setAvailableVoices] = useState([]);
 
-  // Initialize speech synthesis and voices
+  // --- Speech synthesis ---
   useEffect(() => {
     const loadVoices = () => {
       const voices = window.speechSynthesis.getVoices();
       setAvailableVoices(voices);
-      // Try to find and set a clear English voice as default
-      const preferredVoice = voices.find(
-        voice => 
-          voice.lang.startsWith('en') && 
-          (voice.name.includes('Daniel') || // Premium Windows voice
-           voice.name.includes('Samantha') || // Premium macOS voice
-           voice.name.includes('Google'))  // Clear Google voice
+      const preferred = voices.find(v => v.lang.startsWith("en") && 
+        (v.name.includes("Daniel") || v.name.includes("Samantha") || v.name.includes("Google"))
       ) || voices[0];
-      setSelectedVoice(preferredVoice);
+      setSelectedVoice(preferred);
     };
-
     window.speechSynthesis.onvoiceschanged = loadVoices;
     loadVoices();
-
-    // Cancel any ongoing speech when component unmounts
-    return () => {
-      window.speechSynthesis.cancel();
-    };
+    return () => window.speechSynthesis.cancel();
   }, []);
 
-  // Auto-scroll to latest message
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  // Initialize speech recognition
-  useEffect(() => {
-    if ('webkitSpeechRecognition' in window) {
-      const recognitionInstance = new window.webkitSpeechRecognition();
-      recognitionInstance.continuous = false;
-      recognitionInstance.interimResults = false;
-      recognitionInstance.lang = 'en-US';
-
-      recognitionInstance.onstart = () => {
-        setIsListening(true);
-        playBeep();
-      };
-
-      recognitionInstance.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        setInput(transcript);
-        setIsListening(false);
-        // Automatically send message after voice input
-        handleSendMessage(transcript);
-      };
-
-      recognitionInstance.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        setIsListening(false);
-      };
-
-      recognitionInstance.onend = () => {
-        setIsListening(false);
-      };
-
-      setRecognition(recognitionInstance);
-    }
-  }, []);
-
-  // Enhanced speak function with SSML-like processing
-  const speak = (text) => {
-    if (!('speechSynthesis' in window)) return;
-
-    // Cancel any ongoing speech
+  const speak = text => {
+    if (!("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
-
-    // Process text for better speech synthesis
-    const processedText = text
-      .replace(/{".*"}/, '') // Remove JSON
-      .replace(/([.!?])\s+/g, '$1\n\n') // Add pauses after sentences
-      .replace(/[:,]\s+/g, '$0\n') // Add slight pauses after colons and commas
-      .trim();
-
-    const utterance = new SpeechSynthesisUtterance(processedText);
-    
-    // Configure speech parameters
+    const utterance = new SpeechSynthesisUtterance(text);
     utterance.voice = selectedVoice;
     utterance.volume = speechVolume;
-
-    // Add event handlers
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = (event) => {
-      console.error('Speech synthesis error:', event);
-      setIsSpeaking(false);
-    };
-
+    utterance.onerror = () => setIsSpeaking(false);
     window.speechSynthesis.speak(utterance);
   };
 
-  // Function to stop speaking
   const stopSpeaking = () => {
     window.speechSynthesis.cancel();
     setIsSpeaking(false);
   };
 
-  // Function to play a beep sound
+  // --- Speech recognition ---
+  useEffect(() => {
+    if (!("webkitSpeechRecognition" in window)) return;
+    const recognitionInstance = new window.webkitSpeechRecognition();
+    recognitionInstance.continuous = false;
+    recognitionInstance.interimResults = false;
+    recognitionInstance.lang = "en-US";
+
+    recognitionInstance.onstart = () => {
+      setIsListening(true);
+      playBeep();
+    };
+
+    recognitionInstance.onresult = e => {
+      const transcript = e.results[0][0].transcript;
+      setInput(transcript);
+      setIsListening(false);
+      handleSendMessage(transcript);
+    };
+
+    recognitionInstance.onerror = e => {
+      console.error("Speech recognition error:", e.error);
+      setIsListening(false);
+    };
+
+    recognitionInstance.onend = () => setIsListening(false);
+
+    setRecognition(recognitionInstance);
+  }, []);
+
+  const startListening = () => {
+    if (recognition) recognition.start();
+    else addMessage("system", "Speech recognition not supported in this browser.");
+  };
+
   const playBeep = () => {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
-    oscillator.type = 'sine';
+    oscillator.type = "sine";
     oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
     oscillator.connect(audioContext.destination);
     oscillator.start();
     oscillator.stop(audioContext.currentTime + 0.1);
   };
 
-  // Start voice recognition
-  const startListening = () => {
-    if (recognition) {
-      recognition.start();
-    } else {
-      addMessage("system", "Speech recognition is not supported in your browser.");
-    }
-  };
-
+  // --- Chat helper ---
   const addMessage = (type, text, data = null) => {
     setMessages(prev => [...prev, { type, text, data, timestamp: new Date() }]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+// Send user message to LLM
+const handleSendMessage = async (voiceInput = null) => {
+  const text = input.trim() || voiceInput;
+  if (!text) return;
 
-  // Send user message to LLM
-  const handleSendMessage = async (voiceInput = null) => {
-    const textToSend = input.trim() || voiceInput;
-    if (!textToSend) return;
+  setIsProcessing(true);
+  addMessage("user", text);
+  setInput("");
 
-    setIsProcessing(true);
-    addMessage("user", textToSend);
-    setInput("");
+  try {
+    const res = await axios.post("http://localhost:7001/api/llm/parse", { text });
+    const { message, parsed } = res.data;
 
-    try {
-      const res = await axios.post("http://localhost:7001/api/llm/parse", { text: textToSend });
-      const llmMessage = res.data.message;
-      const parsed = res.data.parsed;
+    // Extract tickets and event name from user text if missing
+    let eventName = parsed?.event;
+    let tickets = parsed?.tickets;
 
-      // If LLM proposes a booking, store it in pendingBooking instead of booking immediately
-      if (parsed?.event && parsed?.tickets) {
-        setPendingBooking(parsed);
-        addMessage("assistant", `Proposed booking: ${parsed.tickets} ticket(s) for "${parsed.event}". Click "Confirm Booking" to finalize.`);
-      } else {
-        addMessage("assistant", llmMessage, parsed);
-      }
-    } catch (err) {
-      const errorMessage = "Sorry, I couldn't process your request. Please try again.";
-      addMessage("system", errorMessage);
-      console.error(err);
-    } finally {
-      setIsProcessing(false);
+    // Try to parse missing pieces from text
+    if (!eventName) {
+      const eventMatch = text.match(/for\s+(.+)/i);
+      if (eventMatch) eventName = eventMatch[1].trim();
     }
-  };
 
-  // Confirm the pending booking by calling client service
-  const confirmBooking = async () => {
-    if (!pendingBooking) return;
+    if (!tickets) {
+      const ticketMatch = text.match(/(\d+)\s*tickets?/i);
+      if (ticketMatch) tickets = parseInt(ticketMatch[1], 10);
+    }
 
-    setIsProcessing(true);
-    try {
-      // Find the event by name first (case-insensitive)
+    // If both event and tickets are present → propose booking
+    if (eventName && tickets) {
       const eventsRes = await axios.get("http://localhost:6001/api/events");
-      const event = eventsRes.data.find(e => e.name.toLowerCase() === pendingBooking.event.toLowerCase());
-
-      if (!event) {
-        addMessage("system", `Event "${pendingBooking.event}" not found.`);
-        setPendingBooking(null);
-        return;
-      }
-
-      // Call purchase API
-      const purchaseRes = await axios.post(`http://localhost:6001/api/events/${event.id}/purchase`);
-      const remainingTickets = purchaseRes.data.remaining_tickets ?? event.tickets_available - pendingBooking.tickets;
-
-      addMessage(
-        "assistant",
-        `Successfully booked ${pendingBooking.tickets} ticket(s) for "${event.name}". There are ${remainingTickets} tickets remaining.`
+      const event = eventsRes.data.find(
+        e => e.name.toLowerCase() === eventName.toLowerCase()
       );
 
-      speak(purchaseRes.data.message);
+      if (event) {
+        const booking = {
+          event: event.name,
+          tickets,
+        };
+        setPendingBooking(booking);
 
-      // Refresh main event list
-      if (refreshEvents) refreshEvents();
-    } catch (err) {
-      console.error(err);
-      addMessage("system", "Failed to confirm booking.");
-      speak("Failed to confirm booking.");
-    } finally {
-      setPendingBooking(null);
-      setIsProcessing(false);
+        addMessage(
+          "assistant",
+          `Proposed booking: ${booking.tickets} ticket(s) for "${booking.event}". Click "Confirm Booking" to finalize.`
+        );
+      } else {
+        addMessage("system", `Event "${eventName}" not found.`);
+      }
+    } else {
+      // Only ask for missing info once
+      if (!eventName && !tickets)
+        addMessage("assistant", "Please provide the event name and number of tickets you'd like to book.");
+      else if (!eventName)
+        addMessage("assistant", "Please provide the event name.");
+      else if (!tickets)
+        addMessage("assistant", "Please provide the number of tickets you'd like to book.");
     }
-  };
+  } catch (err) {
+    console.error(err);
+    addMessage("system", "Sorry, I couldn't process your request. Please try again.");
+  } finally {
+    setIsProcessing(false);
+  }
+};
+
+// Confirm the pending booking by calling client service
+const confirmBooking = async () => {
+  if (!pendingBooking) return;
+  setIsProcessing(true);
+
+  try {
+    const eventsRes = await axios.get("http://localhost:6001/api/events");
+    const event = eventsRes.data.find(
+      e => e.name.toLowerCase() === pendingBooking.event.toLowerCase()
+    );
+
+    if (!event) {
+      addMessage("system", `Event "${pendingBooking.event}" not found.`);
+      setPendingBooking(null);
+      return;
+    }
+
+    const purchaseRes = await axios.post(
+      `http://localhost:6001/api/events/${event.id}/purchase`,
+      { tickets: pendingBooking.tickets }
+    );
+
+    const remainingTickets =
+      purchaseRes.data.remaining_tickets ??
+      event.tickets_available - pendingBooking.tickets;
+
+    addMessage(
+      "assistant",
+      `Successfully booked ${pendingBooking.tickets} ticket(s) for "${event.name}". ${remainingTickets} tickets remaining.`
+    );
+
+    speak(purchaseRes.data.message || `Booking confirmed.`);
+
+    if (refreshEvents) refreshEvents();
+  } catch (err) {
+    console.error(err);
+    addMessage("system", "Failed to confirm booking.");
+    speak("Failed to confirm booking.");
+  } finally {
+    setPendingBooking(null);
+    setIsProcessing(false);
+  }
+};
+
+
 
   return (
     <div className="llm-booking">
-
-      {/* Accessibility Controls */}
-      <div className="accessibility-controls" style={{
-        padding: "12px",
-        marginBottom: "16px",
-        background: "#f5f5f5",
-        borderRadius: "4px"
-      }}>
+      {/* Accessibility */}
+      <div style={{ padding: 12, marginBottom: 16, background: "#f5f5f5", borderRadius: 4 }}>
         <h3>Accessibility Settings</h3>
-        <div style={{ display: "grid", gap: "12px", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
           <div>
-            <label htmlFor="voice-select">Voice: </label>
+            <label>Voice: </label>
             <select
-              id="voice-select"
               value={selectedVoice?.name || ""}
-              onChange={(e) => {
+              onChange={e => {
                 const voice = availableVoices.find(v => v.name === e.target.value);
                 setSelectedVoice(voice);
               }}
               style={{ width: "100%" }}
             >
-              {availableVoices.map(voice => (
-                <option key={voice.name} value={voice.name}>
-                  {`${voice.name} (${voice.lang})`}
-                </option>
+              {availableVoices.map(v => (
+                <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>
               ))}
             </select>
           </div>
-
           <div>
-            <label htmlFor="volume">Volume: {Math.round(speechVolume * 100)}%</label>
+            <label>Volume: {Math.round(speechVolume * 100)}%</label>
             <input
               type="range"
-              id="volume"
               min="0"
               max="1"
               step="0.1"
               value={speechVolume}
-              onChange={(e) => setSpeechVolume(parseFloat(e.target.value))}
+              onChange={e => setSpeechVolume(parseFloat(e.target.value))}
               style={{ width: "100%" }}
             />
           </div>
         </div>
       </div>
 
-      <div className="chat-messages" style={{ height: "400px", overflowY: "auto", border: "1px solid #ccc", borderRadius: "4px", padding: "16px", marginBottom: "16px" }}>
+      {/* Chat messages */}
+      <div style={{ height: 400, overflowY: "auto", border: "1px solid #ccc", borderRadius: 4, padding: 16, marginBottom: 16 }}>
         {messages.map((msg, idx) => (
-          <div key={idx} style={{ marginBottom: "12px", textAlign: msg.type === "user" ? "right" : "left" }}>
+          <div key={idx} style={{ marginBottom: 12, textAlign: msg.type === "user" ? "right" : "left" }}>
             <div style={{
               display: "inline-block",
               backgroundColor: msg.type === "user" ? "#007bff" : msg.type === "system" ? "#dc3545" : "#28a745",
               color: "white",
               padding: "8px 12px",
-              borderRadius: "12px",
+              borderRadius: 12,
               maxWidth: "80%"
             }}>
               {msg.text}
@@ -274,66 +264,24 @@ export default function LLMBooking({ refreshEvents }) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+      {/* Input & buttons */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <input
           type="text"
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyPress={e => e.key === "Enter" && handleSendMessage()}
           placeholder="Type your message..."
-          style={{ flex: 1, padding: "8px" }}
+          style={{ flex: 1, padding: 8 }}
           disabled={isProcessing}
-          aria-label="Message input"
         />
-        <button onClick={handleSendMessage} disabled={isProcessing || !input.trim()} style={{ padding: "8px 16px" }}>
-          Send
-        </button>
-
-        <button
-          onClick={startListening}
-          disabled={isListening || isProcessing}
-          style={{
-            padding: "8px",
-            borderRadius: "50%",
-            width: "40px",
-            height: "40px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: isListening ? "#ff4444" : "#4CAF50"
-          }}
-          aria-label={isListening ? "Listening..." : "Start voice input"}
-        >
-          <span role="img" aria-hidden="true"></span>
-        </button>
-
-        {isSpeaking && (
-          <button
-            onClick={stopSpeaking}
-            style={{
-              padding: "8px 16px",
-              backgroundColor: "#dc3545",
-              color: "white",
-              border: "none",
-              borderRadius: "4px"
-            }}
-            aria-label="Stop speaking"
-          >
-            Stop Speech
-          </button>
-        )}
-
-        {/* Confirm button shows only when a booking is pending */}
-        {pendingBooking && (
-          <button
-            onClick={confirmBooking}
-            disabled={isProcessing}
-            style={{ padding: "8px 16px", backgroundColor: "#28a745", color: "white", border: "none", borderRadius: "4px" }}
-          >
-            Confirm Booking
-          </button>
-        )}
+        <button onClick={handleSendMessage} disabled={isProcessing || !input.trim()} style={{ padding: "8px 16px" }}>Send</button>
+        <button onClick={startListening} disabled={isListening || isProcessing} style={{
+          padding: 8, borderRadius: "50%", width: 40, height: 40,
+          backgroundColor: isListening ? "#ff4444" : "#4CAF50"
+        }} />
+        {isSpeaking && <button onClick={stopSpeaking} style={{ padding: "8px 16px", backgroundColor: "#dc3545", color: "white", border: "none", borderRadius: 4 }}>Stop Speech</button>}
+        {pendingBooking && <button onClick={confirmBooking} disabled={isProcessing} style={{ padding: "8px 16px", backgroundColor: "#28a745", color: "white", border: "none", borderRadius: 4 }}>Confirm Booking</button>}
       </div>
     </div>
   );
