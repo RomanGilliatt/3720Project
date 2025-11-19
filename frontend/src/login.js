@@ -1,7 +1,7 @@
-// src/components/Register.js
-import { useState } from 'react';
+// src/components/Login.js
+import { useState, useEffect } from 'react';
 
-export default function Register() {
+export default function Login({ setUser }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
@@ -11,7 +11,7 @@ export default function Register() {
     setMessage('');
 
     try {
-      const res = await fetch('http://localhost:4000/register', {
+      const res = await fetch('http://localhost:4000/login', {
         method: 'POST',
         credentials: 'include', // important for HTTP-only cookies
         headers: { 'Content-Type': 'application/json' },
@@ -20,11 +20,12 @@ export default function Register() {
 
       const data = await res.json();
       if (res.ok) {
-        setMessage('Registered successfully! You can now log in.');
+        setUser(data.user); // update React state for logged-in user
+        setMessage('Logged in successfully!');
         setEmail('');
         setPassword('');
       } else {
-        setMessage(data.error || 'Registration failed');
+        setMessage(data.error || 'Login failed');
       }
     } catch (err) {
       setMessage('Server error, try again later.');
@@ -34,7 +35,7 @@ export default function Register() {
 
   return (
     <form onSubmit={handleSubmit} aria-live="polite">
-      <h2>Register</h2>
+      <h2>Login</h2>
 
       <label htmlFor="email">Email:</label>
       <input
@@ -54,7 +55,7 @@ export default function Register() {
         required
       />
 
-      <button type="submit">Register</button>
+      <button type="submit">Login</button>
 
       {message && <p>{message}</p>}
     </form>

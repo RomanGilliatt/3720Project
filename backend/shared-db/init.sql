@@ -16,3 +16,11 @@ CREATE TABLE IF NOT EXISTS bookings (
   confirmed_at DATETIME,
   FOREIGN KEY (event_id) REFERENCES events(id)
 );
+
+-- Users table for authentication
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,  -- store hashed password
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

@@ -44,6 +44,19 @@ class User {
       });
     });
   }
+
+  // Delete a user by ID
+  static deleteById(id) {
+    return new Promise((resolve, reject) => {
+      const sql = `DELETE FROM users WHERE id = ?`;
+      db.run(sql, [id], function(err) {
+        if (err) return reject(err);
+        resolve(this.changes); // number of rows deleted
+      });
+    });
+  }
+
 }
 
+User.db = db; // export the db connection for direct queries if needed
 module.exports = User;

@@ -35,7 +35,7 @@ const register = async (req, res) => {
     const user = await User.create({ email, password });
 
     // Issue JWT cookie
-    setTokenCookie(res, { id: user.id, email: user.email });
+    //setTokenCookie(res, { id: user.id, email: user.email });
 
     res.status(201).json({ message: 'Registered successfully', user });
   } catch (err) {
@@ -44,15 +44,20 @@ const register = async (req, res) => {
   }
 };
 
-/* ------------------- LOGIN ------------------- */
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    console.log('Login attempt for:', email); // log email
+
     const user = await User.findByEmail(email);
+    console.log('User found:', user); // log returned user object
+
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
     const valid = await bcrypt.compare(password, user.passwordHash);
+    console.log('Password valid?', valid); // log bcrypt result
+
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
     // Issue JWT cookie
@@ -64,6 +69,8 @@ const login = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+
 
 /* ------------------- LOGOUT ------------------- */
 const logout = (req, res) => {
@@ -82,4 +89,33 @@ const me = (req, res) => {
   res.json({ user: req.user });
 };
 
-module.exports = { register, login, logout, me };
+/* ------------------- GET ALL USERS ------------------- */
+const getAllUsers = (req, res) => {
+  const sql = `SELECT id, email, created_at FROM users`; // exclude passwords
+  const db = require('../models/userModel').db; // make sure db is exported
+
+  db.all(sql, [], (err, rows) => {
+    if (err) {
+      console.error('Error fetching users:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    res.json({ users: rows });
+  });
+};
+
+/* ------------------- DELETE CURRENT USER ------------------- */
+const deleteUser = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    const rowsDeleted = await User.deleteById(userId);
+    if (rowsDeleted === 0) return res.status(404).json({ error: 'User not found' });
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (err) {
+    console.error('Delete user error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+module.exports = { register, login, logout, me, getAllUsers, deleteUser };
