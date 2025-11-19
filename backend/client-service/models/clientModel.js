@@ -2,11 +2,14 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
 const db = new sqlite3.Database(path.join(__dirname, '../../shared-db/database.sqlite'), (err) => {
-    if (err) {
-        console.error('Error connecting to database:', err);
-    } else {
-        console.log('Connected to SQLite database');
+  if (err) {
+    console.error('Error connecting to database:', err);
+  } else {
+    // Avoid noisy logs during tests
+    if (process.env.NODE_ENV !== 'test') {
+      console.log('Connected to SQLite database');
     }
+  }
 });
 
 class Event {
