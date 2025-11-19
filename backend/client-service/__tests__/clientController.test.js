@@ -1,8 +1,8 @@
-const { getAllEvents, purchaseTicket } = require('../controllers/clientController');
-const Event = require('../models/clientModel');
-
-// Mock the Event model
+// Ensure the Event model is mocked before the controller is required so the real DB
+// connection in the model does not run during tests.
 jest.mock('../models/clientModel');
+const Event = require('../models/clientModel');
+const { getAllEvents, purchaseTicket } = require('../controllers/clientController');
 
 describe('Client Controller Tests', () => {
     let mockRequest;
@@ -10,7 +10,7 @@ describe('Client Controller Tests', () => {
     let consoleErrorSpy;
 
     beforeEach(() => {
-        mockRequest = {};
+        mockRequest = { body: {} };
         mockResponse = {
             json: jest.fn(),
             status: jest.fn().mockReturnThis()
@@ -61,7 +61,8 @@ describe('Client Controller Tests', () => {
 
             await purchaseTicket(mockRequest, mockResponse);
 
-            expect(Event.purchaseTicket).toHaveBeenCalledWith(1);
+            // Controller passes eventId and ticket count (defaults to 1)
+            expect(Event.purchaseTicket).toHaveBeenCalledWith(1, 1);
             expect(mockResponse.json).toHaveBeenCalledWith(mockResult);
         });
 
