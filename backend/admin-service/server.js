@@ -10,13 +10,10 @@ const PORT = process.env.PORT || 5001;
 app.use(express.json());
 
 app.use(cors({
-  origin: [
-    'https://frontend-lac-one-73.vercel.app',
-    'https://frontend-git-main-tiger-tix1.vercel.app',
-    'https://frontend-4mj8x9uek-tiger-tix1.vercel.app'
-  ],
+  origin: 'https://frontend-lac-one-73.vercel.app', // your Vercel frontend
   credentials: true
 }));
+
 
 // Routes
 app.use('/api/admin', adminRoutes);

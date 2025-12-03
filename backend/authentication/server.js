@@ -8,7 +8,7 @@ const authRoutes = require('./routes/authRoutes');
 const app = express();
 
 app.use(cors({
-  origin: 'https://frontend-lac-one-73.vercel.app', // your frontend
+  origin: 'https://frontend-lac-one-73.vercel.app', //frontend
   credentials: true
 }));
 
