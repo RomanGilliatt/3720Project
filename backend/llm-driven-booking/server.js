@@ -47,7 +47,7 @@ app.post("/api/llm/parse", async (req, res) => {
   if (!text) return res.status(400).json({ error: "Missing text input" });
 
   // Read API key
-  const GROQ_API_KEY = process.env.LLM_KEY;
+  const GROQ_API_KEY = process.env.GROQ_API_KEY;
   console.log("LLM_KEY set?:", GROQ_API_KEY ? "YES" : "NO");
 
   if (!GROQ_API_KEY) {
