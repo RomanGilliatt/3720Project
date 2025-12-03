@@ -65,7 +65,7 @@ User message: "${text}"
     }
 
     const response = await axios.post(
-    "https://cloud.ollama.com/v1/generate", //Ollama cloud API endpoint
+    "https://api.ollama.com/v1/generate", //Ollama cloud API endpoint
     {
       model: "llama3.2:3b",
       prompt: prompt
