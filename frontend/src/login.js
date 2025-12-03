@@ -11,7 +11,7 @@ export default function Login({ setUser }) {
     setMessage('');
 
     try {
-      const res = await fetch('http://localhost:4000/login', {
+      const res = await fetch(`${process.env.REACT_APP_AUTH_URL}/login`, {
         method: 'POST',
         credentials: 'include', // important for HTTP-only cookies
         headers: { 'Content-Type': 'application/json' },

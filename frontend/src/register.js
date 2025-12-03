@@ -11,7 +11,7 @@ export default function Register() {
     setMessage('');
 
     try {
-      const res = await fetch('http://localhost:4000/register', {
+      const res = await fetch(`${process.env.REACT_APP_AUTH_URL}/register`, {
         method: 'POST',
         credentials: 'include', // important for HTTP-only cookies
         headers: { 'Content-Type': 'application/json' },
