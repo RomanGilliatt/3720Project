@@ -31,6 +31,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type','Authorization']
 }));
 
+// FIX: allow OPTIONS preflight
+app.options('*', cors());
+
 // Connect to shared SQLite database
 const dbPromise = open({
   filename: "../shared-db/database.sqlite",
@@ -101,9 +104,5 @@ User message: "${text}"
     console.error("Error:", err.message);
     res.status(500).json({ error: "Failed to communicate with LLM" });
   }
-});
-
-app.listen(7001, () => {
-  console.log("LLM-driven booking service running on port 7001");
 });
 

@@ -107,7 +107,8 @@ const handleSendMessage = async (voiceInput = null) => {
   setInput("");
 
   try {
-    const res = await axios.post(`${process.env.REACT_APP_LLM_URL}/api/llm/parse`, { text });
+    const res = await axios.post(`${process.env.REACT_APP_LLM_URL}/api/llm/parse`, { text },
+    { headers: { 'Content-Type': 'application/json' } });
     const { message, parsed } = res.data;
 
     // Extract tickets and event name from user text if missing
@@ -181,7 +182,7 @@ const confirmBooking = async () => {
     }
 
     const purchaseRes = await axios.post(
-      `${process.env.REACT_APP_CLIENT_URL}/${event.id}/purchase`,
+      `${process.env.REACT_APP_CLIENT_URL}/api/events/${event.id}/purchase`,
       { tickets: pendingBooking.tickets }
     );
 
