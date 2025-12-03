@@ -38,13 +38,24 @@ const dbPromise = open({
   driver: sqlite3.Database
 });
 
-/// LLM PARSING ENDPOINT (FIXED)
+// ===== LLM Parsing Endpoint =====
 app.post("/api/llm/parse", async (req, res) => {
+  console.log("==== Incoming /api/llm/parse Request ====");
+  console.log("Body:", req.body);
+
   const { text } = req.body;
   if (!text) return res.status(400).json({ error: "Missing text input" });
 
+  // Read API key
+  const GROQ_API_KEY = process.env.LLM_KEY;
+  console.log("LLM_KEY set?:", GROQ_API_KEY ? "YES" : "NO");
+
+  if (!GROQ_API_KEY) {
+    console.error("ERROR: LLM_KEY is not set on Render!");
+    return res.status(500).json({ error: "Server missing LLM_KEY env variable" });
+  }
+
   try {
-    // Include user's text in the prompt
     const prompt = `
 You are a ticket booking assistant. Be concise. If you detect event name and ticket quantity, propose booking, but do NOT update database until user confirms.
 
@@ -57,31 +68,28 @@ Rules:
 
 User message: "${text}"
 `;
-    const GROQ_API_KEY = process.env.LLM_KEY;
 
-    if (!GROQ_API_KEY) {
-      console.error("Error: GROQ_API_KEY is not set!");
-      //process.exit(1);
-    }
+    console.log("Sending request to Groq...");
 
     const response = await axios.post(
-    "https://api.groq.com/openai/v1/chat/completions",
-    {
-      model: "llama3-8b-8192",
-      messages: [
-      { role: "user", content: prompt }
-    ]
-    },
-    {
-      headers: {
-        "Authorization": `Bearer ${GROQ_API_KEY}`,
-        "Content-Type": "application/json"
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        model: "llama3-8b-8192",
+        messages: [{ role: "user", content: prompt }]
+      },
+      {
+        headers: {
+          "Authorization": `Bearer ${GROQ_API_KEY}`,
+          "Content-Type": "application/json"
+        }
       }
-    });
+    );
+
+    console.log("Groq response received:", response.data);
 
     const llmResponse = response.data.choices[0].message.content.trim();
 
-    //Extract JSON safely
+    // Extract JSON safely
     let parsedData = null;
     const jsonMatch = llmResponse.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
@@ -92,28 +100,25 @@ User message: "${text}"
       }
     }
 
-    // Clean final message
     const message = llmResponse.replace(/\{[\s\S]*\}/, "").trim();
 
-    res.json({
-      message: message || "(No message returned)",
-      parsed: parsedData
-    });
+    res.json({ message: message || "(No message returned)", parsed: parsedData });
 
   } catch (err) {
-  console.error("LLM ERROR FULL DETAILS:", {
-    message: err.message,
-    code: err.code,
-    status: err.response?.status,
-    headers: err.response?.headers,
-    data: err.response?.data
-  });
+    console.error("LLM ERROR FULL DETAILS:", {
+      message: err.message,
+      code: err.code,
+      status: err.response?.status,
+      headers: err.response?.headers,
+      data: err.response?.data
+    });
 
-  return res.status(500).json({
-    error: "LLM request failed",
-    details: err.response?.data || err.message || err
-  });
-}
+    res.status(500).json({
+      error: "LLM request failed",
+      details: err.response?.data || err.message || err
+    });
+  }
 });
 
+// ===== Start server =====
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
