@@ -57,27 +57,29 @@ Rules:
 
 User message: "${text}"
 `;
-    const OLLAMA_API_KEY = process.env.LLM_KEY;
+    const GROQ_API_KEY = process.env.LLM_KEY;
 
-    if (!OLLAMA_API_KEY) {
-      console.error("Error: OLLAMA_API_KEY is not set!");
+    if (!GROQ_API_KEY) {
+      console.error("Error: GROQ_API_KEY is not set!");
       //process.exit(1);
     }
 
     const response = await axios.post(
-    "https://api.ollama.com/v1/generate", //Ollama cloud API endpoint
+    "https://api.groq.com/openai/v1/chat/completions",
     {
-      model: "llama3.2:3b",
-      prompt: prompt
+      model: "llama3-8b-8192",
+      messages: [
+      { role: "user", content: prompt }
+    ]
     },
     {
       headers: {
-        "Authorization": `Bearer ${OLLAMA_API_KEY}`,
+        "Authorization": `Bearer ${GROQ_API_KEY}`,
         "Content-Type": "application/json"
       }
     });
 
-    const llmResponse = response.data.response.trim();
+    const llmResponse = response.data.choices[0].message.content.trim();
 
     //Extract JSON safely
     let parsedData = null;
