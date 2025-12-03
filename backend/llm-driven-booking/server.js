@@ -99,9 +99,17 @@ User message: "${text}"
     });
 
   } catch (err) {
-    console.error("Error:", err.message);
-    res.status(500).json({ error: "Failed to communicate with LLM" });
-  }
+  console.error("LLM ERROR:", {
+    message: err.message,
+    status: err.response?.status,
+    data: err.response?.data
+  });
+
+  res.status(500).json({
+    error: "LLM request failed",
+    details: err.response?.data || err.message
+  });
+}
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
