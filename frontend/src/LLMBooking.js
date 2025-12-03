@@ -14,16 +14,6 @@ export default function LLMBooking({ refreshEvents }) {
   const [selectedVoice, setSelectedVoice] = useState(null);
   const [availableVoices, setAvailableVoices] = useState([]);
 
-  app.use(cors({
-  origin: [
-    'https://frontend-lac-one-73.vercel.app',
-    'https://frontend-git-main-tiger-tix1.vercel.app',
-    'https://frontend-4mj8x9uek-tiger-tix1.vercel.app'
-  ],
-  credentials: true
-}));
-
-
   // --- Speech synthesis ---
   useEffect(() => {
     const loadVoices = () => {
