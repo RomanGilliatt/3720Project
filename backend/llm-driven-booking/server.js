@@ -6,6 +6,8 @@ import axios from "axios";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 
+const PORT = process.env.PORT || 3000;
+
 const app = express();
 //app.use(cors());
 app.use(bodyParser.json());
@@ -100,5 +102,7 @@ User message: "${text}"
     console.error("Error:", err.message);
     res.status(500).json({ error: "Failed to communicate with LLM" });
   }
+
+  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 });
 
