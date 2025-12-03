@@ -35,19 +35,25 @@ Rules:
 
 User message: "${text}"
 `;
+    const OLLAMA_API_KEY = process.env.LLM_KEY;
 
-    /*const response = await axios.post("http://localhost:11434/api/generate", {
+    if (!OLLAMA_API_KEY) {
+      console.error("Error: OLLAMA_API_KEY is not set!");
+      process.exit(1);
+    }
+
+    const response = await axios.post(
+    "https://cloud.ollama.com/v1/generate", //Ollama cloud API endpoint
+    {
       model: "llama3.2:3b",
-      prompt,
-      stream: false
-    });*/
-
-    // TEMPORARY MOCK FOR DEPLOYMENT
-    const response = {
-      data: {
-      text: "This is a mock LLM response. Replace with real LLM later."
+      prompt: prompt
+    },
+    {
+      headers: {
+        "Authorization": `Bearer ${OLLAMA_API_KEY}`,
+        "Content-Type": "application/json"
       }
-    };
+    });
 
     const llmResponse = response.data.response.trim();
 
