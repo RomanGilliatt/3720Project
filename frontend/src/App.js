@@ -4,6 +4,17 @@ import LLMBooking from "./LLMBooking";
 import Register from './register';
 import Login from './login';
 
+app.use(cors({
+  origin: [
+    'https://frontend-lac-one-73.vercel.app',
+    'https://frontend-git-main-tiger-tix1.vercel.app',
+    'https://frontend-4mj8x9uek-tiger-tix1.vercel.app'
+  ],
+  credentials: true
+}));
+
+
+
 /**
  * Main app component for displaying and managing Clemson events
  */
@@ -24,7 +35,7 @@ function App() {
    */
   const fetchEvents = async () => {
     try {
-      const res = await fetch('http://localhost:6001/api/events');
+      const res = await fetch(`${process.env.REACT_APP_ADMIN_URL}/api/events`);
       const data = await res.json();
       setEvents(data);
     } catch (err) {
@@ -39,7 +50,7 @@ function App() {
    */
   const fetchCurrentUser = async () => {
     try {
-      const res = await fetch('http://localhost:4000/me', {
+      const res = await fetch(`${process.env.REACT_APP_AUTH_URL}/me`, {
         credentials: 'include', // include HTTP-only JWT cookie
       });
       if (res.ok) {
@@ -63,7 +74,7 @@ function App() {
     }
 
     try {
-      const response = await fetch(`http://localhost:6001/api/events/${eventId}/purchase`, {
+      const response = await fetch(`${process.env.REACT_APP_CLIENT_URL}/api/events/${eventId}/purchase`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -87,7 +98,7 @@ function App() {
    */
   const handleLogout = async () => {
     try {
-      const res = await fetch('http://localhost:4000/logout', {
+      const res = await fetch(`${process.env.REACT_APP_AUTH_URL}/logout`, {
         method: 'POST',
         credentials: 'include',
       });

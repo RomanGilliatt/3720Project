@@ -14,6 +14,16 @@ export default function LLMBooking({ refreshEvents }) {
   const [selectedVoice, setSelectedVoice] = useState(null);
   const [availableVoices, setAvailableVoices] = useState([]);
 
+  app.use(cors({
+  origin: [
+    'https://frontend-lac-one-73.vercel.app',
+    'https://frontend-git-main-tiger-tix1.vercel.app',
+    'https://frontend-4mj8x9uek-tiger-tix1.vercel.app'
+  ],
+  credentials: true
+}));
+
+
   // --- Speech synthesis ---
   useEffect(() => {
     const loadVoices = () => {
@@ -107,7 +117,7 @@ const handleSendMessage = async (voiceInput = null) => {
   setInput("");
 
   try {
-    const res = await axios.post("http://localhost:7001/api/llm/parse", { text });
+    const res = await axios.post(`${process.env.REACT_APP_LLM_URL}/api/llm/parse`, { text });
     const { message, parsed } = res.data;
 
     // Extract tickets and event name from user text if missing
@@ -127,7 +137,7 @@ const handleSendMessage = async (voiceInput = null) => {
 
     // If both event and tickets are present → propose booking
     if (eventName && tickets) {
-      const eventsRes = await axios.get("http://localhost:6001/api/events");
+      const eventsRes = await axios.get(`${process.env.REACT_APP_CLIENT_URL}/api/events`);
       const event = eventsRes.data.find(
         e => e.name.toLowerCase() === eventName.toLowerCase()
       );
@@ -169,7 +179,7 @@ const confirmBooking = async () => {
   setIsProcessing(true);
 
   try {
-    const eventsRes = await axios.get("http://localhost:6001/api/events");
+    const eventsRes = await axios.get(`${process.env.REACT_APP_CLIENT_URL}/api/events`);
     const event = eventsRes.data.find(
       e => e.name.toLowerCase() === pendingBooking.event.toLowerCase()
     );
@@ -181,7 +191,7 @@ const confirmBooking = async () => {
     }
 
     const purchaseRes = await axios.post(
-      `http://localhost:6001/api/events/${event.id}/purchase`,
+      `${process.env.REACT_APP_CLIENT_URL}/${event.id}/purchase`,
       { tickets: pendingBooking.tickets }
     );
 

@@ -10,12 +10,19 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(cookieParser());
-app.use(
+
+/*app.use(
   cors({
     origin: 'http://localhost:3000', // React frontend
     credentials: true,               // allow cookies for JWT
   })
-);
+);*/
+
+app.use(cors({
+  origin: 'https://frontend-lac-one-73.vercel.app',
+  credentials: true
+}));
+
 
 // Routes
 app.use('/', authRoutes); // mount all auth routes (register, login, logout, /me)

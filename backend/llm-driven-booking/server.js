@@ -7,8 +7,14 @@ import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 
 const app = express();
-app.use(cors());
+//app.use(cors());
 app.use(bodyParser.json());
+
+app.use(cors({
+  origin: 'https://frontend-lac-one-73.vercel.app',
+  credentials: true
+}));
+
 
 // Connect to shared SQLite database
 const dbPromise = open({
