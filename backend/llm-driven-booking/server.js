@@ -99,15 +99,17 @@ User message: "${text}"
     });
 
   } catch (err) {
-  console.error("LLM ERROR:", {
+  console.error("LLM ERROR FULL DETAILS:", {
     message: err.message,
+    code: err.code,
     status: err.response?.status,
+    headers: err.response?.headers,
     data: err.response?.data
   });
 
-  res.status(500).json({
+  return res.status(500).json({
     error: "LLM request failed",
-    details: err.response?.data || err.message
+    details: err.response?.data || err.message || err
   });
 }
 });
