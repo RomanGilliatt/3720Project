@@ -16,23 +16,19 @@ const allowedOrigins = [
   'https://frontend-4mj8x9uek-tiger-tix1.vercel.app'
 ];
 
+// Use cors globally
 app.use(cors({
   origin: (origin, callback) => {
+    // allow requests with no origin (like Postman)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true, // important for cookies
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
-// Ensure preflight OPTIONS requests succeed
-app.options('*', cors({
-  origin: allowedOrigins,
-  credentials: true,
+  credentials: true, // allows cookies
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization']
 }));
 
 // Connect to shared SQLite database
