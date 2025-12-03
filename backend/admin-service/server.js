@@ -10,9 +10,16 @@ const PORT = process.env.PORT || 5001;
 app.use(express.json());
 
 app.use(cors({
-  origin: 'https://frontend-lac-one-73.vercel.app', // your Vercel frontend
+  origin: (origin, callback) => {
+    if (!origin || origin.endsWith('.vercel.app')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
+
 
 
 // Routes

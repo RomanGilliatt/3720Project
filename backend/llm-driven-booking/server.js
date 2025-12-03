@@ -11,9 +11,16 @@ const app = express();
 app.use(bodyParser.json());
 
 app.use(cors({
-  origin: 'https://frontend-lac-one-73.vercel.app', // your Vercel frontend
+  origin: (origin, callback) => {
+    if (!origin || origin.endsWith('.vercel.app')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
+
 
 
 

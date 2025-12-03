@@ -8,9 +8,16 @@ const authRoutes = require('./routes/authRoutes');
 const app = express();
 
 app.use(cors({
-  origin: 'https://frontend-lac-one-73.vercel.app', //frontend
+  origin: (origin, callback) => {
+    if (!origin || origin.endsWith('.vercel.app')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
+
 
 // Middleware
 app.use(express.json());
