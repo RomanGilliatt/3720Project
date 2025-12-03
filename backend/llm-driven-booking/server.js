@@ -30,13 +30,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type','Authorization']
 }));
 
-// Replace any `app.use('*', ...)` or `app.options('*', ...)` with:
-app.all('/*', (req, res, next) => {
-  // fallback route
-  res.status(404).send('Not found');
-});
-
-
 // Connect to shared SQLite database
 const dbPromise = open({
   filename: "../shared-db/database.sqlite",
