@@ -24,7 +24,7 @@ function App() {
    */
   const fetchEvents = async () => {
     try {
-      const res = await fetch(`${process.env.REACT_APP_ADMIN_URL}/api/events`);
+      const res = await fetch(`${process.env.REACT_APP_CLIENT_URL}/api/events`);
       const data = await res.json();
       setEvents(data);
     } catch (err) {
