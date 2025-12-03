@@ -7,15 +7,29 @@ const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 
+const allowedOrigins = [
+  'https://frontend-lac-one-73.vercel.app',
+  'https://frontend-git-main-tiger-tix1.vercel.app',
+  'https://frontend-4mj8x9uek-tiger-tix1.vercel.app'
+];
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || origin.endsWith('.vercel.app')) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true, // important for cookies
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Ensure preflight OPTIONS requests succeed
+app.options('*', cors({
+  origin: allowedOrigins,
+  credentials: true,
 }));
 
 
