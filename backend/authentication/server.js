@@ -7,6 +7,11 @@ const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 
+app.use(cors({
+  origin: 'https://frontend-lac-one-73.vercel.app', // your frontend
+  credentials: true
+}));
+
 // Middleware
 app.use(express.json());
 app.use(cookieParser());
@@ -17,13 +22,6 @@ app.use(cookieParser());
     credentials: true,               // allow cookies for JWT
   })
 );*/
-
-app.use(cors({
-  origin: 'https://frontend-lac-one-73.vercel.app', // your frontend
-  credentials: true
-}));
-
-
 
 // Routes
 app.use('/', authRoutes); // mount all auth routes (register, login, logout, /me)
