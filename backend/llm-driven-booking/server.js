@@ -60,7 +60,7 @@ User message: "${text}"
 
     if (!OLLAMA_API_KEY) {
       console.error("Error: OLLAMA_API_KEY is not set!");
-      process.exit(1);
+      //process.exit(1);
     }
 
     const response = await axios.post(
