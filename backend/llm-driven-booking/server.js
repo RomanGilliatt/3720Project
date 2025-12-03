@@ -25,8 +25,7 @@ app.use(cors({
     } else {
       callback(new Error('Not allowed by CORS'));
     }
-  },
-  credentials: true, // allows cookies
+  },credentials: true, // allows cookies
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization']
 }));
