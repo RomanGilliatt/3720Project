@@ -67,8 +67,6 @@ const login = async (req, res) => {
   }
 };
 
-
-
 /* ------------------- LOGOUT ------------------- */
 const logout = (req, res) => {
   res.clearCookie('token', {
