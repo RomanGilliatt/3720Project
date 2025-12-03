@@ -102,7 +102,6 @@ User message: "${text}"
     console.error("Error:", err.message);
     res.status(500).json({ error: "Failed to communicate with LLM" });
   }
-
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 });
 
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
