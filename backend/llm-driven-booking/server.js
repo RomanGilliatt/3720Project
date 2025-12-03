@@ -31,6 +31,12 @@ app.use(cors({
   allowedHeaders: ['Content-Type','Authorization']
 }));
 
+// Ensure preflight OPTIONS requests succeed
+app.options('*', cors({
+  origin: allowedOrigins,
+  credentials: true,
+}));
+
 // Connect to shared SQLite database
 const dbPromise = open({
   filename: "../shared-db/database.sqlite",
