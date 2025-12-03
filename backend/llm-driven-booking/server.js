@@ -36,11 +36,18 @@ Rules:
 User message: "${text}"
 `;
 
-    const response = await axios.post("http://localhost:11434/api/generate", {
+    /*const response = await axios.post("http://localhost:11434/api/generate", {
       model: "llama3.2:3b",
       prompt,
       stream: false
-    });
+    });*/
+
+    // TEMPORARY MOCK FOR DEPLOYMENT
+    const response = {
+      data: {
+      text: "This is a mock LLM response. Replace with real LLM later."
+      }
+    };
 
     const llmResponse = response.data.response.trim();
 
