@@ -1,6 +1,64 @@
-name: CI/CD Pipeline
+name: Full CI/CD Pipeline
 
 on:
   push:
     branches:
       - main
+
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        service: [admin-service, authentication, client-service, llm-driven-booking]
+
+    steps:
+      # ---------------- Step 1: Checkout code ----------------
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # ---------------- Step 2: Setup Node.js ----------------
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      # ---------------- Step 3: Install dependencies & run tests ----------------
+      - name: Install dependencies
+        working-directory: ./backend/${{ matrix.service }}
+        run: npm install
+
+      - name: Run tests
+        working-directory: ./backend/${{ matrix.service }}
+        run: npm test
+
+  # ---------------- Step 4: Deploy backend microservices via Render hooks ----------------
+  deploy-backend:
+    needs: build-test-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy admin-service
+        if: success()
+        run: curl -X POST ${{ secrets.RENDER_ADMIN_DEPLOY_HOOK }}
+
+      - name: Deploy authentication
+        if: success()
+        run: curl -X POST ${{ secrets.RENDER_AUTH_DEPLOY_HOOK }}
+
+      - name: Deploy client-service
+        if: success()
+        run: curl -X POST ${{ secrets.RENDER_CLIENT_DEPLOY_HOOK }}
+
+      - name: Deploy llm-driven-booking
+        if: success()
+        run: curl -X POST ${{ secrets.RENDER_LLM_DEPLOY_HOOK }}
+
+  # ---------------- Step 5: Deploy frontend via Vercel hook ----------------
+  deploy-frontend:
+    needs: deploy-backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy frontend to Vercel
+        if: success()
+        run: curl -X POST ${{ secrets.RENDER_FRONTEND_DEPLOY_HOOK }}
