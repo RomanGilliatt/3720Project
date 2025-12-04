@@ -15,7 +15,8 @@ app.use(bodyParser.json());
 const allowedOrigins = [
   'https://frontend-lac-one-73.vercel.app',
   'https://frontend-git-main-tiger-tix1.vercel.app',
-  'https://frontend-4mj8x9uek-tiger-tix1.vercel.app'
+  'https://frontend-4mj8x9uek-tiger-tix1.vercel.app',
+  'https://frontend-7s1e4cx01-tiger-tix1.vercel.app/'
 ];
 
 // Use cors globally
