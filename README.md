@@ -1,5 +1,8 @@
 # TigerTix
 
+**Link to video:**
+- https://www.loom.com/share/e90d70ec97ea4d28a87dc3d2e5614031
+
 **Project Overview**
 - TigerTix is a campus events ticketing demo that demonstrates a React frontend communicating with Node/Express microservices (events, authentication, admin and an LLM-driven booking helper). The project was built for instructional/demo purposes and includes automated tests for both frontend and backend components.
 - Key features: event listing, authenticated ticket purchase, admin event management, and an LLM-driven natural-language booking assistant.
@@ -52,28 +55,41 @@ Quick start
 **Environment Variables Setup**
 Create `.env` files per service (examples below).
 
-- `backend/authentication/.env`:
-	- `PORT=4000`
-	- `JWT_SECRET=your_jwt_secret_here`
-	- `DATABASE_URL=../shared-db/database.sqlite`
+**Backend**
 
-- `backend/client-service/.env`:
-	- `PORT=6001`
-	- `DATABASE_URL=../shared-db/database.sqlite`
+**Client-service microservice**
+- REACT_APP_ADMIN_URL
+- REACT_APP_AUTH_URL
+- REACT_APP_CLIENT_URL
+- REACT_APP_LLM_URL
 
-- `backend/admin-service/.env`:
-	- `PORT=5001`
-	- `DATABASE_URL=../shared-db/database.sqlite`
+**Admin-service microservice**
+- REACT_APP_ADMIN_URL
+- REACT_APP_AUTH_URL
+- REACT_APP_CLIENT_URL
+- REACT_APP_LLM_URL
 
-- `backend/llm-driven-booking/.env`:
-	- `PORT=7001`
-	- `LLM_PROVIDER=groq` (or your provider)
-	- `LLM_API_KEY=sk-xxxx` (your provider key)
+**Authentication microservice**
+- REACT_APP_ADMIN_URL
+- REACT_APP_AUTH_URL
+- REACT_APP_CLIENT_URL
+- REACT_APP_LLM_URL
+- JWT_SECRET
+- NODE_ENV
 
-- `frontend/.env`:
-	- `PORT=3000`
-	- `REACT_APP_CLIENT_SERVICE_URL=http://localhost:6001`
-	- `REACT_APP_AUTH_URL=http://localhost:4000`
+
+**LLM-driven-booking microservice**
+- REACT_APP_ADMIN_URL
+- REACT_APP_AUTH_URL
+- REACT_APP_CLIENT_URL
+- REACT_APP_LLM_URL
+- GROQ_API_KEY
+
+**Frontend**
+- REACT_APP_ADMIN_URL
+- REACT_APP_AUTH_URL
+- REACT_APP_CLIENT_URL
+- REACT_APP_LLM_URL
 
 **How to run regression tests**
 - Frontend unit/integration tests:
@@ -99,3 +115,4 @@ Create `.env` files per service (examples below).
 
 **License**
 - MIT
+
